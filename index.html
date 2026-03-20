@@ -89,7 +89,7 @@
 
   .meta-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 12px;
     margin-bottom: 16px;
   }
@@ -114,6 +114,23 @@
     outline: none;
     transition: border-color 0.2s;
     resize: none;
+    box-sizing: border-box;
+  }
+
+  input[type="date"] {
+    height: 38px;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  input[type="text"] {
+    height: 38px;
+  }
+
+  textarea {
+    height: auto;
+    min-height: 180px;
+    line-height: 1.8;
   }
 
   input:focus, textarea:focus {
@@ -121,10 +138,7 @@
     background: white;
   }
 
-  textarea {
-    min-height: 180px;
-    line-height: 1.8;
-  }
+
 
   .char-hint {
     font-size: 11px;
@@ -135,20 +149,16 @@
   /* Voice recording */
   .voice-bar {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
     background: var(--paper2);
     border: 1px solid var(--border);
     border-radius: 3px;
-    padding: 12px 14px;
+    padding: 10px 14px;
     margin-bottom: 10px;
   }
 
-  .voice-bar-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+
 
   .btn-mic {
     background: none;
@@ -442,7 +452,7 @@
   }
 
   @media (max-width: 600px) {
-    .meta-row { grid-template-columns: 1fr; }
+    .meta-row { grid-template-columns: 1fr; } /* already 1fr */
     header { padding: 16px 20px; }
     .container { padding: 20px 16px 48px; }
     .tab-panel { padding: 20px 16px; }
@@ -478,25 +488,14 @@
       </div>
     </div>
 
-    <div class="step-label">STEP 2 — 音声録音・写真読み取り または テキスト貼り付け</div>
+    <div class="step-label">STEP 2 — 音声録音 または テキスト貼り付け</div>
 
     <div class="voice-bar">
-      <div class="voice-bar-buttons">
-        <button class="btn-mic" id="btnMic" onclick="toggleRecording()">
-          🎙️ 録音開始
-        </button>
-        <button class="btn-mic" onclick="document.getElementById('photoInput').click()">
-          📷 写真を読み取る
-        </button>
-        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="readPhoto(event)">
-        <button class="btn-clear-text" onclick="clearText()">✕ クリア</button>
-      </div>
-      <span class="mic-status" id="micStatus">録音するか写真を選んでください。テキストに自動変換されます。</span>
-    </div>
-
-    <div id="photoPreviewArea" style="display:none; margin-bottom:10px;">
-      <img id="photoPreview" style="max-width:100%; max-height:180px; border-radius:3px; border:1px solid #d4ccc4;">
-      <div id="photoReadingMsg" style="font-size:11px; color:#8c8078; margin-top:4px;">📷 読み取り中…</div>
+      <button class="btn-mic" id="btnMic" onclick="toggleRecording()">
+        🎙️ 録音開始
+      </button>
+      <span class="mic-status" id="micStatus">ボタンを押して話してください。文字起こしが自動で入力されます。</span>
+      <button class="btn-clear-text" onclick="clearText()">✕ クリア</button>
     </div>
 
     <textarea id="rawText" placeholder="録音するか、文字起こしテキストをここに直接貼り付けてください。句読点がなくてもOKです。"></textarea>
@@ -624,76 +623,6 @@
     const el = document.getElementById('micStatus');
     el.innerHTML = html;
     el.className = 'mic-status' + (active ? ' active' : '');
-  }
-
-  async function readPhoto(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    try {
-    // Show preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      document.getElementById('photoPreview').src = e.target.result;
-      document.getElementById('photoPreviewArea').style.display = 'block';
-      document.getElementById('photoReadingMsg').textContent = '📷 読み取り中…';
-    };
-    reader.readAsDataURL(file);
-
-    // Convert to base64 for API
-    const base64 = await new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result.split(',')[1]);
-      r.onerror = reject;
-      r.readAsDataURL(file);
-    });
-
-    setMicStatus('📷 写真を読み取っています…', true);
-
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: file.type, data: base64 }
-              },
-              {
-                type: 'text',
-                text: 'この画像に書かれているテキストをすべて読み取って、そのまま出力してください。画像がホワイトボード・メモ・資料・議題などの場合はその内容をすべて書き出してください。説明は不要です。テキストのみ出力してください。'
-              }
-            ]
-          }]
-        })
-      });
-      const data = await res.json();
-      const extracted = data.content?.[0]?.text || '';
-
-      // Append to existing text
-      const existing = document.getElementById('rawText').value;
-      document.getElementById('rawText').value = existing ? existing + '
-' + extracted : extracted;
-      accumulatedText = document.getElementById('rawText').value;
-
-      document.getElementById('photoReadingMsg').textContent = '✅ 読み取り完了';
-      setMicStatus('📷 写真の文字を読み取りました。このまま文書を生成できます。', false);
-    } catch (e) {
-      setMicStatus('エラーが発生しました: ' + e.message, false);
-      document.getElementById('photoReadingMsg').textContent = '❌ 読み取りに失敗しました';
-    }
-
-    // Reset file input
-    document.getElementById('photoInput').value = '';
-    } catch(err) {
-      setMicStatus('写真の読み取りでエラーが発生しました。', false);
-      console.error(err);
-    }
   }
 
   function clearText() {
