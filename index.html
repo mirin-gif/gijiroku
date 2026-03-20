@@ -59,6 +59,45 @@
     padding: 32px 24px 60px;
   }
 
+  /* API Key section */
+  .apikey-card {
+    background: #fff8f0;
+    border: 1.5px solid var(--accent2);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+
+  .apikey-card .apikey-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .apikey-card .apikey-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.6;
+  }
+
+  .apikey-input {
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--ink);
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 10px;
+    outline: none;
+  }
+
+  .apikey-input:focus {
+    border-color: var(--accent2);
+  }
+
   /* Step labels */
   .step-label {
     font-size: 10px;
@@ -470,6 +509,17 @@
 
 <div class="container">
 
+  <!-- API Key card -->
+  <div class="apikey-card">
+    <div class="apikey-title">🔑 APIキーを入力してください</div>
+    <input type="password" class="apikey-input" id="apiKey" placeholder="sk-ant-api03-..." >
+    <div class="apikey-hint">
+      ※ APIキーはAnthropicのサイト（console.anthropic.com）で取得できます。<br>
+      ※ 入力したキーはこの画面にのみ使用され、外部に送信されません。<br>
+      ※ 一度入力すれば、このページを開いている間は保持されます。
+    </div>
+  </div>
+
   <!-- Input card -->
   <div class="input-card">
     <div class="step-label">STEP 1 — 会議情報</div>
@@ -729,9 +779,16 @@ ${rawText}
       }
 
       try {
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) {
+          alert('APIキーを入力してください。');
+          document.getElementById('btnGenerate').disabled = false;
+          document.getElementById('loadingArea').style.display = 'none';
+          return;
+        }
         const res = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1000,
